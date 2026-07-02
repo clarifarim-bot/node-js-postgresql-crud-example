@@ -1,0 +1,58 @@
+name: CI - Build and Test
+ 
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+ 
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+ 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+ 
+      - name: Build the Docker image
+        run: docker build -t tutorial-app:ci .
+ 
+      - name: Create a shared network
+        run: docker network create test-net
+ 
+      - name: Start a PostgreSQL database
+        run: |
+          docker run -d --name test-db --network test-net \
+            -e POSTGRES_USER=tutorial_user \
+            -e POSTGRES_PASSWORD=tutorial_password \
+            -e POSTGRES_DB=tutorial_db \
+            postgres:15-alpine
+ 
+      - name: Wait for the database to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if docker exec test-db pg_isready -U tutorial_user; then
+              echo "Database is ready!"
+              break
+            fi
+            echo "Waiting for database... ($i)"
+            sleep 2
+          done
+ 
+      - name: Run the app container
+        run: |
+          docker run -d --name test-app --network test-net \
+            -e DB_HOST=test-db \
+            -e DB_USER=tutorial_user \
+            -e DB_PASSWORD=tutorial_password \
+            -e DB_NAME=tutorial_db \
+            -p 8080:8080 \
+            tutorial-app:ci
+ 
+      - name: Wait for the app to start
+        run: sleep 15
+ 
+      - name: Health check (the actual test)
+        run: |
+          curl --fail http://localhost:8080/api/tutorials || exit 1
+          echo "API is responding correctly!"
