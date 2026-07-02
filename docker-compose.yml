@@ -1,0 +1,29 @@
+version: '3.8'
+ 
+services:
+  backend:
+    build: .
+    container_name: tutorial-api
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_USER: tutorial_user
+      DB_PASSWORD: tutorial_password
+      DB_NAME: tutorial_db
+      DB_PORT: 5432
+    depends_on:
+      - postgres
+ 
+  postgres:
+    image: postgres:15-alpine
+    container_name: tutorial-db
+    environment:
+      POSTGRES_USER: tutorial_user
+      POSTGRES_PASSWORD: tutorial_password
+      POSTGRES_DB: tutorial_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+ 
+volumes:
+  postgres_data:
